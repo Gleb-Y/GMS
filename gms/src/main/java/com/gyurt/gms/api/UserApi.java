@@ -1,21 +1,25 @@
 package com.gyurt.gms.api;
 
+import com.gyurt.gms.dto.ApiResponse;
 import com.gyurt.gms.repo.User;
-import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 @RequestMapping("/api/users")
+@Tag(name = "user-controller", description = "user endpoints")
 public interface UserApi {
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    User create(@RequestBody User user);
+    ResponseEntity<ApiResponse<User>> create(@Valid @RequestBody User user);
 
     @GetMapping("/{email}")
-    User findByEmail(@PathVariable String email) throws UserNotFoundException;
+    ResponseEntity<ApiResponse<User>> findByEmail(@PathVariable String email);
 
     @PutMapping
-    User update(@RequestBody User user) throws UserNotFoundException;
+    ResponseEntity<ApiResponse<User>> update(@Valid @RequestBody User user);
 
     @DeleteMapping("/{id}")
-    void delete(@PathVariable Long id) throws UserNotFoundException;
+    ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id);
 }
