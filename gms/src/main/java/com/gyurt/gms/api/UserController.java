@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController implements UserApi{
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public ResponseEntity<ApiResponse<User>> create(@Valid @RequestBody User user) {
@@ -23,6 +25,8 @@ public class UserController implements UserApi{
                     .badRequest()
                     .body(ApiResponse.error("Email already in use", HttpStatus.BAD_REQUEST.value()));
             }
+            // Hash password before saving
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
             User savedUser = userRepository.save(user);
             return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -50,6 +54,10 @@ public class UserController implements UserApi{
         return userRepository.findById(user.getId())
             .map(existingUser -> {
                 user.setCreatedAt(existingUser.getCreatedAt());
+                // Hash password if it was changed
+                if (!user.getPassword().equals(existingUser.getPassword())) {
+                    user.setPassword(passwordEncoder.encode(user.getPassword()));
+                }
                 User updatedUser = userRepository.save(user);
                 return ResponseEntity.ok(ApiResponse.success(updatedUser, "User updated successfully"));
             })

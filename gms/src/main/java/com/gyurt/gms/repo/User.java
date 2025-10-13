@@ -11,6 +11,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
@@ -36,9 +38,12 @@ public class User {
     @Size(min = 6, message = "Password must be at least 6 characters long")
     private String password;
 
-    @NotBlank(message = "Role is required")
-    @Pattern(regexp = "^(USER|ADMIN)$", message = "Role must be either USER or ADMIN")
-    private String role = "USER";
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserMembership> memberships = new ArrayList<>();
 
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp
