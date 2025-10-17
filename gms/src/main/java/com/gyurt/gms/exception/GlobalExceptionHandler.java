@@ -1,6 +1,6 @@
 package com.gyurt.gms.exception;
 
-import com.gyurt.gms.api.UserNotFoundException;
+import com.gyurt.gms.controller.UserNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

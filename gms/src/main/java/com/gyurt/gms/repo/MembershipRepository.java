@@ -1,5 +1,6 @@
 package com.gyurt.gms.repo;
 
+import com.gyurt.gms.model.Membership;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

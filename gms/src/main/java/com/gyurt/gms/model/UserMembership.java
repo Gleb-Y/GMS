@@ -1,6 +1,7 @@
-package com.gyurt.gms.repo;
+package com.gyurt.gms.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.gyurt.gms.repo.MembershipStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

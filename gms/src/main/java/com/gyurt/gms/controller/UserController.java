@@ -1,8 +1,11 @@
-package com.gyurt.gms.api;
+package com.gyurt.gms.controller;
 
 import com.gyurt.gms.dto.ApiResponse;
-import com.gyurt.gms.repo.User;
+import com.gyurt.gms.model.User;
 import com.gyurt.gms.repo.UserRepository;
+import com.gyurt.gms.service.CustomUserDetailsService;
+import com.gyurt.gms.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,12 +15,15 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-public class UserController implements UserApi{
+@RequestMapping("/api/users")
+@Tag(name = "user-controller", description = "user endpoints")
+public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserService service;
 
-    @Override
+    @PostMapping
     public ResponseEntity<ApiResponse<User>> create(@Valid @RequestBody User user) {
         try {
             if (userRepository.existsByEmail(user.getEmail())) {
@@ -39,7 +45,7 @@ public class UserController implements UserApi{
         }
     }
 
-    @Override
+    @GetMapping("/{email}")
     public ResponseEntity<ApiResponse<User>> findByEmail(@PathVariable String email) {
         return userRepository.findByEmail(email)
             .map(user -> ResponseEntity.ok(ApiResponse.success(user, "User found")))
@@ -49,7 +55,7 @@ public class UserController implements UserApi{
                                      HttpStatus.NOT_FOUND.value())));
     }
 
-    @Override
+    @PutMapping
     public ResponseEntity<ApiResponse<User>> update(@Valid @RequestBody User user) {
         return userRepository.findById(user.getId())
             .map(existingUser -> {
@@ -67,7 +73,12 @@ public class UserController implements UserApi{
                                      HttpStatus.NOT_FOUND.value())));
     }
 
-    @Override
+    @PostMapping("/login")
+    public String login(@RequestBody User user){
+        return service.verify(user);
+    }
+
+    @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         return userRepository.findById(id)
             .map(user -> {

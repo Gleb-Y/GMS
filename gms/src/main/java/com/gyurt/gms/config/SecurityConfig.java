@@ -1,7 +1,8 @@
 package com.gyurt.gms.config;
 
-import com.gyurt.gms.security.CustomUserDetailsService;
+import com.gyurt.gms.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,6 +16,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -38,6 +40,9 @@ public class SecurityConfig {
         "/swagger-ui/**"
     };
 
+    @Autowired
+    private JwtFilter jwtFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -45,6 +50,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.POST,"/api/users/login").permitAll()
                 .requestMatchers(AUTH_WHITELIST).permitAll()
                 // User endpoints
                 .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("USER", "ADMIN")
@@ -64,7 +70,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/user-memberships/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            .httpBasic(basic -> {});
+            .httpBasic(basic -> {})
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+        ;
             
         return http.build();
     }

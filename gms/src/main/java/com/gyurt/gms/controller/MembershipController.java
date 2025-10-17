@@ -1,7 +1,7 @@
-package com.gyurt.gms.api;
+package com.gyurt.gms.controller;
 
 import com.gyurt.gms.dto.ApiResponse;
-import com.gyurt.gms.repo.Membership;
+import com.gyurt.gms.model.Membership;
 import com.gyurt.gms.repo.MembershipRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

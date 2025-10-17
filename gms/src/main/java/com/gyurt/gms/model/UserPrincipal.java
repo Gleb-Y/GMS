@@ -1,6 +1,5 @@
-package com.gyurt.gms.security;
+package com.gyurt.gms.model;
 
-import com.gyurt.gms.repo.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;

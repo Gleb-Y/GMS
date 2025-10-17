@@ -1,4 +1,4 @@
-package com.gyurt.gms.repo;
+package com.gyurt.gms.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;

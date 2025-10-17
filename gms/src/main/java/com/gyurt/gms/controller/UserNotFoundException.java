@@ -1,4 +1,4 @@
-package com.gyurt.gms.api;
+package com.gyurt.gms.controller;
 
 public class UserNotFoundException extends Exception {
 }
