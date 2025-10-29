@@ -9,18 +9,12 @@ import java.util.List;
 @Repository
 public interface MembershipRepository extends JpaRepository<Membership, Long> {
     
-    /**
-     * Найти все активные абонементы
-     */
+
     List<Membership> findByIsActiveTrue();
     
-    /**
-     * Найти абонемент по названию
-     */
+
     Membership findByName(String name);
     
-    /**
-     * Проверить существование абонемента по названию
-     */
+
     boolean existsByName(String name);
 }
