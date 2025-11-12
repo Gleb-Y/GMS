@@ -1,6 +1,7 @@
 package com.gyurt.gms.controller;
 
 import com.gyurt.gms.dto.ApiResponse;
+import com.gyurt.gms.dto.LoginResponse;
 import com.gyurt.gms.model.User;
 import com.gyurt.gms.repo.UserRepository;
 import com.gyurt.gms.service.CustomUserDetailsService;
@@ -74,9 +75,17 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody User user){
-        return service.verify(user);
+    public ResponseEntity<?> login(@RequestBody User user){
+        try {
+            LoginResponse response = service.verify(user);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("Bad credentials: " + e.getMessage(), HttpStatus.UNAUTHORIZED.value()));
+        }
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {

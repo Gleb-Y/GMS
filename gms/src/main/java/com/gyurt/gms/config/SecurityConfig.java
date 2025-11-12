@@ -25,6 +25,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
+    private final CustomAuthenticationSuccessHandler authenticationSuccessHandler;
 
     private static final String[] AUTH_WHITELIST = {
         // -- Swagger UI v2
@@ -50,6 +51,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/", "/login", "/register", "/api/users/login", "/api/users").permitAll()
                 .requestMatchers(HttpMethod.POST,"/api/users/login").permitAll()
                 .requestMatchers(AUTH_WHITELIST).permitAll()
                 // User endpoints
@@ -57,12 +59,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/users").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
-                // Membership endpoints (public read, admin write)
+                // Membership endpoints
                 .requestMatchers(HttpMethod.GET, "/api/memberships/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/memberships").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/memberships/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/memberships/**").hasRole("ADMIN")
-                // User membership endpoints (authenticated read, admin write)
+                // User membership endpoints
                 .requestMatchers(HttpMethod.GET, "/api/user-memberships/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/user-memberships").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/user-memberships/**").hasRole("ADMIN")
@@ -70,7 +72,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/user-memberships/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            .httpBasic(basic -> {})
+            .httpBasic(httpBasic -> httpBasic.disable())
+            .formLogin(form -> form
+                    .loginPage("/login")
+                    .successHandler(authenticationSuccessHandler)
+                    .permitAll()
+            )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
         ;
             
