@@ -18,6 +18,9 @@ public interface UserMembershipRepository extends JpaRepository<UserMembership, 
 
     List<UserMembership> findByUserIdAndStatus(Long userId, MembershipStatus status);
     
+    @Query("SELECT um FROM UserMembership um WHERE um.status = 'ACTIVE' AND um.endDate <= :expiryDate")
+    List<UserMembership> findExpiringBefore(@Param("expiryDate") LocalDate expiryDate);
+    
 
     @Query("SELECT um FROM UserMembership um WHERE um.user.id = :userId " +
            "AND um.status = 'ACTIVE' AND um.endDate >= :currentDate " +

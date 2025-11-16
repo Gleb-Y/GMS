@@ -2,14 +2,19 @@ package com.gyurt.gms.controller;
 
 import com.gyurt.gms.dto.ApiResponse;
 import com.gyurt.gms.model.Membership;
+import com.gyurt.gms.model.UserMembership;
+import com.gyurt.gms.model.UserPrincipal;
 import com.gyurt.gms.repo.MembershipRepository;
+import com.gyurt.gms.service.MembershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,10 +22,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/memberships")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "membership-controller", description = "Управление типами абонементов")
 public class MembershipController {
 
     private final MembershipRepository membershipRepository;
+    private final MembershipService membershipService;
 
     @GetMapping
     @Operation(summary = "Получить все абонементы", description = "Доступно для всех пользователей")
@@ -97,5 +104,93 @@ public class MembershipController {
             .orElseGet(() -> ResponseEntity
                 .<ApiResponse<Void>>status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Membership not found with id: " + id, HttpStatus.NOT_FOUND.value())));
+    }
+
+
+    @PostMapping("/purchase/{membershipId}")
+    @Operation(summary = "Купить абонемент", description = "Пользователь может купить абонемент")
+    public ResponseEntity<?> purchaseMembership(
+            @PathVariable Long membershipId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("POST /api/memberships/purchase/{} - User: {}", membershipId, userPrincipal.getId());
+
+        try {
+            UserMembership userMembership = membershipService.purchaseMembership(userPrincipal.getUser(), membershipId);
+            return ResponseEntity.ok(ApiResponse.success(userMembership, "Membership purchased successfully"));
+        } catch (Exception e) {
+            log.error("Error purchasing membership: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+
+    @PostMapping("/renew/{membershipId}")
+    @Operation(summary = "Продлить абонемент", description = "Пользователь может продлить свой абонемент")
+    public ResponseEntity<?> renewMembership(
+            @PathVariable Long membershipId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("POST /api/memberships/renew/{} - User: {}", membershipId, userPrincipal.getId());
+
+        try {
+            UserMembership userMembership = membershipService.renewMembership(userPrincipal.getUser(), membershipId);
+            return ResponseEntity.ok(ApiResponse.success(userMembership, "Membership renewed successfully"));
+        } catch (Exception e) {
+            log.error("Error renewing membership: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+
+    @PostMapping("/freeze")
+    @Operation(summary = "Заморозить абонемент", description = "Пользователь может заморозить свой абонемент")
+    public ResponseEntity<?> freezeMembership(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("POST /api/memberships/freeze - User: {}", userPrincipal.getId());
+
+        try {
+            UserMembership userMembership = membershipService.freezeMembership(userPrincipal.getUser());
+            return ResponseEntity.ok(ApiResponse.success(userMembership, "Membership frozen successfully"));
+        } catch (Exception e) {
+            log.error("Error freezing membership: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+
+    @PostMapping("/unfreeze")
+    @Operation(summary = "Разморозить абонемент", description = "Пользователь может разморозить свой абонемент")
+    public ResponseEntity<?> unfreezeMembership(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("POST /api/memberships/unfreeze - User: {}", userPrincipal.getId());
+
+        try {
+            UserMembership userMembership = membershipService.unfreezeMembership(userPrincipal.getUser());
+            return ResponseEntity.ok(ApiResponse.success(userMembership, "Membership unfrozen successfully"));
+        } catch (Exception e) {
+            log.error("Error unfreezing membership: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+
+    @GetMapping("/my-membership")
+    @Operation(summary = "Получить мой активный абонемент")
+    public ResponseEntity<?> getMyMembership(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("GET /api/memberships/my-membership - User: {}", userPrincipal.getId());
+
+        var membership = membershipService.getUserActiveMembership(userPrincipal.getUser());
+        return ResponseEntity.ok(ApiResponse.success(membership, "Active membership retrieved"));
+    }
+
+
+    @GetMapping("/my-memberships")
+    @Operation(summary = "Получить все мои абонементы")
+    public ResponseEntity<?> getMyMemberships(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("GET /api/memberships/my-memberships - User: {}", userPrincipal.getId());
+
+        List<UserMembership> memberships = membershipService.getUserMemberships(userPrincipal.getUser());
+        return ResponseEntity.ok(ApiResponse.success(memberships, "User memberships retrieved"));
     }
 }

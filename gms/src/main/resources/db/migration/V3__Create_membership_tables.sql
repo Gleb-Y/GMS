@@ -53,4 +53,4 @@ VALUES
 -- Предполагаем, что user с id=1 (admin) и id=2 (user) уже существуют
 INSERT INTO user_memberships (user_id, membership_id, start_date, end_date, status, notes)
 VALUES 
-    (6, 1, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'ACTIVE', 'Первый абонемент пользователя');
+    (2, 1, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'ACTIVE', 'Первый абонемент пользователя');

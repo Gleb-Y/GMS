@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -64,6 +65,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/memberships").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/memberships/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/memberships/**").hasRole("ADMIN")
+                // Locker endpoints - public only for GET availability
+                .requestMatchers(HttpMethod.GET, "/api/lockers/available", "/api/lockers/available/count").permitAll()
+                // Trainings endpoints - public GETs
+                .requestMatchers(HttpMethod.GET, "/api/trainings/**").permitAll()
                 // User membership endpoints
                 .requestMatchers(HttpMethod.GET, "/api/user-memberships/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/user-memberships").hasRole("ADMIN")
@@ -73,10 +78,9 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .httpBasic(httpBasic -> httpBasic.disable())
-            .formLogin(form -> form
-                    .loginPage("/login")
-                    .successHandler(authenticationSuccessHandler)
-                    .permitAll()
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
         ;

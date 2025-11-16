@@ -11,7 +11,8 @@ import java.util.Collections;
 @Data
 @AllArgsConstructor
 public class UserPrincipal implements UserDetails {
-    
+
+    private User user;
     private Long id;
     private String email;
     private String name;
@@ -20,6 +21,7 @@ public class UserPrincipal implements UserDetails {
 
     public static UserPrincipal create(User user) {
         return new UserPrincipal(
+            user,
             user.getId(),
             user.getEmail(),
             user.getName(),
@@ -41,6 +43,10 @@ public class UserPrincipal implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    public User getUser() {
+        return user;
     }
 
     @Override
