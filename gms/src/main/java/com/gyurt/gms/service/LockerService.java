@@ -159,4 +159,13 @@ public class LockerService {
         }
         log.info("300 lockers initialized successfully");
     }
+
+    @org.springframework.context.annotation.Bean
+    public org.springframework.boot.CommandLineRunner initLockers() {
+        return args -> {
+            if (lockerRepository.count() == 0) {
+                initializeLockers();
+            }
+        };
+    }
 }
