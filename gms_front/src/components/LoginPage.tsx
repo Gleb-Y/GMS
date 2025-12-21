@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import type { FormEvent } from 'react';
+import api from './api';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -10,43 +12,37 @@ interface LoginPageProps {
     onBack: () => void;
 }
 
-// Mock users database
-const mockUsers: User[] = [
-    {
-        id: '1',
-        email: 'admin@gms.com',
-        name: 'Admin User',
-        role: 'admin'
-    },
-    {
-        id: '2',
-        email: 'member@gms.com',
-        name: 'Yurtaev Gleb',
-        role: 'member',
-        membership: {
-            plan: 'Premium Plan',
-            startDate: '2025-01-01',
-            endDate: '2025-12-31'
-        }
-    }
-];
 
-export function LoginPage({ onLogin, onBack }: LoginPageProps) {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setError('');
-
-        // Mock authentication
-        const user = mockUsers.find(u => u.email === email);
-
-        if (user && password === 'password123') {
-            onLogin(user);
-        } else {
-            setError('Invalid email or password');
+        setLoading(true);
+        try {
+            const response = await api.post<{ token: string; user: User }>(
+                '/users/login',
+                { email, password }
+            );
+            const { token, user } = response.data;
+            if (token && user) {
+                localStorage.setItem('token', token);
+                onLogin(user);
+            } else {
+                setError('Ошибка: токен или пользователь не получены');
+            }
+        } catch (err: any) {
+            if (err.response && err.response.data && err.response.data.message) {
+                setError(err.response.data.message);
+            } else {
+                setError('Ошибка входа. Проверьте данные и попробуйте снова.');
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -106,8 +102,9 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
                         <Button
                             type="submit"
                             className="w-full bg-orange-500 hover:bg-orange-600"
+                            disabled={loading}
                         >
-                            Login
+                            {loading ? 'Вход...' : 'Login'}
                         </Button>
                     </form>
 
@@ -128,4 +125,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             </div>
         </div>
     );
-}
+};
+
+export default LoginPage;

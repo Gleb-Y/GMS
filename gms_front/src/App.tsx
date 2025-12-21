@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from './components/api';
 import { HomePage } from './components/HomePage';
-import { LoginPage } from './components/LoginPage';
+import LoginPage from './components/LoginPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { MemberDashboard } from './components/MemberDashboard';
 import type { UserRewards } from './components/RewardsSection';
@@ -21,9 +22,29 @@ export type User = {
     progressData?: ProgressData;
 };
 
+
 export default function App() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [showLogin, setShowLogin] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    // Проверка токена при запуске
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            api.get<User>('/users/me')
+                .then(res => {
+                    setCurrentUser(res.data);
+                })
+                .catch(() => {
+                    localStorage.removeItem('token');
+                    setCurrentUser(null);
+                })
+                .then(() => setLoading(false));
+        } else {
+            setLoading(false);
+        }
+    }, []);
 
     const handleLogin = (user: User) => {
         setCurrentUser(user);
@@ -33,8 +54,12 @@ export default function App() {
     const handleLogout = () => {
         setCurrentUser(null);
         setShowLogin(false);
+        localStorage.removeItem('token');
     };
 
+    if (loading) {
+        return <div className="flex items-center justify-center min-h-screen text-white">Загрузка...</div>;
+    }
     return (
         <>
             {showLogin ? (

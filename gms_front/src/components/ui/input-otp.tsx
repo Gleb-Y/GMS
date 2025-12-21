@@ -1,7 +1,51 @@
 "use client";
 
 import * as React from "react";
-import { OTPInput, OTPInputContext } from "gms_front/components/ui/input-otp";
+
+// Простая реализация контекста для OTP
+type OTPInputContextType = {
+  slots: Array<{
+    char?: string;
+    hasFakeCaret?: boolean;
+    isActive?: boolean;
+  }>;
+};
+export const OTPInputContext = React.createContext<OTPInputContextType | null>(null);
+
+// Простая реализация компонента OTPInput
+type OTPInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  containerClassName?: string;
+};
+export const OTPInput: React.FC<OTPInputProps> = ({ containerClassName, className, ...props }) => {
+  // Для примера — просто 4 инпута
+  const [values, setValues] = React.useState(["", "", "", ""]);
+  const slots = values.map((char, idx) => ({
+    char,
+    hasFakeCaret: false,
+    isActive: false,
+  }));
+  return (
+    <OTPInputContext.Provider value={{ slots }}>
+      <div className={containerClassName}>
+        {values.map((value, idx) => (
+          <input
+            key={idx}
+            className={className}
+            value={value}
+            onChange={e => {
+              const newVals = [...values];
+              newVals[idx] = e.target.value;
+              setValues(newVals);
+            }}
+            maxLength={1}
+            {...props}
+          />
+        ))}
+      </div>
+    </OTPInputContext.Provider>
+  );
+};
+// Сам компонент и контекст определены в этом же файле, импорт не нужен
 import { MinusIcon } from "lucide-react";
 
 import { cn } from "./utils";

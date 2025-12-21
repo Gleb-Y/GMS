@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -16,7 +16,7 @@ import {
     Crown,
     CheckCircle2
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export type UserBadge = {
     id: string;
@@ -84,7 +84,7 @@ export function RewardsSection({ rewards, onEarnPoints, onRedeemReward }: Reward
     };
 
     const getBadgeIcon = (iconName: string) => {
-        const icons: { [key: string]: JSX.Element } = {
+        const icons: { [key: string]: React.JSX.Element } = {
             'trophy': <Trophy className="w-6 h-6" />,
             'flame': <Flame className="w-6 h-6" />,
             'star': <Star className="w-6 h-6" />,

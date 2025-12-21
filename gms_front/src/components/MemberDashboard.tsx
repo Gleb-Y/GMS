@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Calendar } from "./ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { Dumbbell, LogOut, CreditCard, Key, Calendar as CalendarIcon, MessageSquare, Award, TrendingUp, Star, User } from "lucide-react";
+import { Dumbbell, LogOut, CreditCard, Key, Calendar as CalendarIcon, MessageSquare, Award, TrendingUp, Star } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 import type { User } from '../App';
 import { RewardsSection, type UserRewards, type Reward } from './RewardsSection';
 import { ProgressTracking, type ProgressData } from './ProgressTracking';
@@ -356,7 +357,7 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <Button className="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">
-                                                <User className="w-4 h-4 mr-2" />
+                                                <UserIcon className="w-4 h-4 mr-2" />
                                                 View Trainers
                                             </Button>
                                         </DialogTrigger>
@@ -397,7 +398,7 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
                                                                     <span className="text-gray-300">{trainer.experience} years experience</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2 text-sm">
-                                                                    <User className="w-4 h-4 text-orange-500" />
+                                                                    <UserIcon className="w-4 h-4 text-orange-500" />
                                                                     <span className="text-gray-300">{trainer.clients} active clients</span>
                                                                 </div>
                                                             </div>

@@ -85,7 +85,7 @@ function Calendar({ mode = "single", selected, onSelect, className }: CalendarPr
     onSelect(new Date(year, month, day));
   };
 
-  const days = [];
+  const days: any[] = [];
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
   // Previous month days
