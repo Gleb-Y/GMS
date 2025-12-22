@@ -1,5 +1,6 @@
 package com.gyurt.gms.service;
 
+import com.gyurt.gms.dto.UserMembershipDto;
 import com.gyurt.gms.model.Membership;
 import com.gyurt.gms.model.Notification;
 import com.gyurt.gms.model.User;
@@ -145,9 +146,10 @@ public class MembershipService {
     }
 
 
-    @Cacheable(value = "user_active_membership", key = "#user.id")
-    public Optional<UserMembership> getUserActiveMembership(User user) {
-        return userMembershipRepository.findActiveByUserId(user.getUserId(), LocalDate.now());
+    @Cacheable(value = "user_active_membership", key = "#user.id", unless = "#result == null")
+    public Optional<UserMembershipDto> getUserActiveMembership(User user) {
+        return userMembershipRepository.findActiveByUserId(user.getUserId(), LocalDate.now())
+                .map(UserMembershipDto::new);
     }
 
 

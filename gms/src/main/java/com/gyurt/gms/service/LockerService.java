@@ -1,5 +1,6 @@
 package com.gyurt.gms.service;
 
+import com.gyurt.gms.dto.LockerDto;
 import com.gyurt.gms.model.Locker;
 import com.gyurt.gms.model.LockerRent;
 import com.gyurt.gms.model.User;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.gyurt.gms.config.RabbitMQConfig.*;
 
@@ -38,9 +40,11 @@ public class LockerService {
 //    }
 
     @Cacheable(value = "lockers", key = "'available'")
-    public List<Locker> getAvailableLockers() {
+    public List<LockerDto> getAvailableLockers() {
         log.info("Fetching available lockers from database");
-        return lockerRepository.findAllAvailable();
+        return lockerRepository.findAllAvailable().stream()
+                .map(LockerDto::new)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(value = "available_lockers_count")

@@ -1,5 +1,6 @@
 package com.gyurt.gms.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,6 +29,7 @@ public class Locker {
 
     @ManyToOne
     @JoinColumn(name = "current_user_id")
+    @JsonIgnore
     private User currentUser;
 
     @Column(name = "created_at", updatable = false)

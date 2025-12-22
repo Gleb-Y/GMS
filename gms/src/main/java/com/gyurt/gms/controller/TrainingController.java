@@ -2,6 +2,7 @@ package com.gyurt.gms.controller;
 
 import com.gyurt.gms.model.*;
 import com.gyurt.gms.service.TrainingService;
+import com.gyurt.gms.repo.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.List;
 public class TrainingController {
 
     private final TrainingService trainingService;
+    private final UserRepository userRepository;
 
     @GetMapping("/coaches")
     @Operation(summary = "Получить всех активных тренеров")
@@ -54,7 +56,8 @@ public class TrainingController {
         try {
             // Здесь нужно получить User по ID
             // Предполагается, что UserRepository доступен через сервис
-            Coach coach = trainingService.createCoach(new User(), specialization, bio);
+            User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+            Coach coach = trainingService.createCoach(user, specialization, bio);
             return ResponseEntity.status(HttpStatus.CREATED).body(coach);
         } catch (Exception e) {
             log.error("Error creating coach: {}", e.getMessage());
