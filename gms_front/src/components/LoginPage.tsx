@@ -19,32 +19,46 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-        try {
-            const response = await api.post<{ token: string; user: User }>(
-                '/users/login',
-                { email, password }
-            );
-            const { token, user } = response.data;
-            if (token && user) {
-                localStorage.setItem('token', token);
-                onLogin(user);
-            } else {
-                setError('Ошибка: токен или пользователь не получены');
-            }
-        } catch (err: any) {
-            if (err.response && err.response.data && err.response.data.message) {
-                setError(err.response.data.message);
-            } else {
-                setError('Ошибка входа. Проверьте данные и попробуйте снова.');
-            }
-        } finally {
-            setLoading(false);
+const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+        const response = await api.post<{ token: string; role: string; email: string }>(
+            '/users/login',
+            { email, password }
+        );
+        const { token, role, email: userEmail } = response.data;
+        
+        if (token && role && userEmail) {
+            localStorage.setItem('token', token);
+            localStorage.setItem('email', userEmail);
+            localStorage.setItem('role', role);
+            
+            // Создаем базовый объект пользователя из данных логина
+            // Полные данные загрузятся позже на соответствующей странице
+            const user: User = {
+                id: userEmail, // используем email как временный id
+                email: userEmail,
+                name: userEmail.split('@')[0], // временное имя из email
+                role: role as "ADMIN" | "USER"
+            };
+            
+            onLogin(user);
+        } else {
+            setError('Ошибка: неполные данные в ответе сервера');
         }
-    };
+    } catch (err: any) {
+        console.error('Login error:', err);
+        if (err.response && err.response.data && err.response.data.message) {
+            setError(err.response.data.message);
+        } else {
+            setError('Ошибка входа. Проверьте данные и попробуйте снова.');
+        }
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center px-6">
@@ -116,8 +130,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                                 <p className="text-gray-300">admin@gms.com / password123</p>
                             </div>
                             <div className="bg-zinc-800 p-3 rounded">
-                                <p className="text-orange-500">Member:</p>
-                                <p className="text-gray-300">member@gms.com / password123</p>
+                                <p className="text-orange-500">User:</p>
+                                <p className="text-gray-300">user@gms.com / password123</p>
                             </div>
                         </div>
                     </div>

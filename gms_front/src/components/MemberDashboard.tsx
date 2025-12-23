@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -12,6 +12,7 @@ import { RewardsSection, type UserRewards, type Reward } from './RewardsSection'
 import { ProgressTracking, type ProgressData } from './ProgressTracking';
 import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { lockerApi, trainingApi, userMembershipApi, type LockerRent, type TrainingSchedule, type Locker, type UserMembership } from './apiServices';
 
 interface MemberDashboardProps {
     user: User;
@@ -31,12 +32,92 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
     const [bookings, setBookings] = useState<Booking[]>([
         { id: '1', type: 'Personal Training', date: '2025-11-08', time: '10:00 AM', trainer: 'Kalinenko Miroslav' }
     ]);
+    
+    // Locker state
     const [hasLocker, setHasLocker] = useState(false);
     const [lockerNumber, setLockerNumber] = useState<string | null>(null);
+    const [activeRent, setActiveRent] = useState<LockerRent | null>(null);
+    const [availableLockers, setAvailableLockers] = useState<Locker[]>([]);
+    const [loadingLocker, setLoadingLocker] = useState(false);
+    
+    // Training state
+    const [upcomingSchedules, setUpcomingSchedules] = useState<TrainingSchedule[]>([]);
+    const [loadingSchedules, setLoadingSchedules] = useState(false);
+    
+    // Membership state
+    const [activeMembership, setActiveMembership] = useState<UserMembership | null>(null);
+    const [loadingMembership, setLoadingMembership] = useState(false);
+    
     const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([
         { role: 'assistant', content: 'Hello! I\'m your AI fitness assistant. How can I help you today?' }
     ]);
     const [chatInput, setChatInput] = useState('');
+
+    // Load locker data
+    useEffect(() => {
+        loadLockerData();
+    }, []);
+
+
+    // Load active membership
+    useEffect(() => {
+        if (user.id) {
+            loadActiveMembership();
+        }
+    }, [user.id]);
+    // Load training schedules
+    useEffect(() => {
+        loadTrainingSchedules();
+    }, []);
+
+    const loadLockerData = async () => {
+        try {
+            const [rentResponse, lockersResponse] = await Promise.all([
+                lockerApi.getMyActiveRent(),
+                lockerApi.getAvailableLockers()
+            ]);
+            
+            if (rentResponse.data) {
+                setActiveRent(rentResponse.data);
+                setHasLocker(true);
+                setLockerNumber(rentResponse.data.locker.lockerNumber);
+            }
+            
+            setAvailableLockers(lockersResponse.data);
+        } catch (error: any) {
+            console.error('Error loading locker data:', error);
+            toast.error('Не удалось загрузить данные шкафчиков');
+        }
+    };
+
+    const loadTrainingSchedules = async () => {
+        setLoadingSchedules(true);
+        try {
+            const response = await trainingApi.getUpcomingSchedules();
+            setUpcomingSchedules(response.data);
+        } catch (error: any) {
+            console.error('Error loading training schedules:', error);
+            toast.error('Не удалось загрузить расписание тренировок');
+        } finally {
+            setLoadingSchedules(false);
+        }
+    };
+
+    const loadActiveMembership = async () => {
+        setLoadingMembership(true);
+        try {
+            const response = await userMembershipApi.getActiveUserMembership(Number(user.id));
+            setActiveMembership(response.data.data);
+        } catch (error: any) {
+            console.error('Error loading active membership:', error);
+            // Не показываем ошибку если абонемент просто отсутствует
+            if (error.response?.status !== 404) {
+                toast.error('Не удалось загрузить данные абонемента');
+            }
+        } finally {
+            setLoadingMembership(false);
+        }
+    };
 
     // Initialize rewards data
     const [userRewards, setUserRewards] = useState<UserRewards>(user.rewards || {
@@ -101,33 +182,66 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
         };
     });
 
-    const handleRentLocker = () => {
-        const randomLocker = Math.floor(Math.random() * 50) + 1;
-        setLockerNumber(randomLocker.toString());
-        setHasLocker(true);
+    const handleRentLocker = async () => {
+        if (availableLockers.length === 0) {
+            toast.error('Нет доступных шкафчиков');
+            return;
+        }
+
+        setLoadingLocker(true);
+        try {
+            const firstAvailable = availableLockers[0];
+            const response = await lockerApi.rentLocker(firstAvailable.id);
+            
+            setActiveRent(response.data);
+            setLockerNumber(response.data.locker.lockerNumber);
+            setHasLocker(true);
+            
+            toast.success(`Шкафчик #${response.data.locker.lockerNumber} арендован!`);
+            
+            // Обновить список доступных шкафчиков
+            await loadLockerData();
+        } catch (error: any) {
+            console.error('Error renting locker:', error);
+            toast.error(error.response?.data || 'Не удалось арендовать шкафчик');
+        } finally {
+            setLoadingLocker(false);
+        }
     };
 
-    const handleCancelLocker = () => {
-        setHasLocker(false);
-        setLockerNumber(null);
+    const handleCancelLocker = async () => {
+        if (!activeRent) return;
+
+        setLoadingLocker(true);
+        try {
+            await lockerApi.releaseLocker(activeRent.id);
+            
+            setHasLocker(false);
+            setLockerNumber(null);
+            setActiveRent(null);
+            
+            toast.success('Шкафчик освобождён');
+            
+            // Обновить список доступных шкафчиков
+            await loadLockerData();
+        } catch (error: any) {
+            console.error('Error releasing locker:', error);
+            toast.error(error.response?.data || 'Не удалось освободить шкафчик');
+        } finally {
+            setLoadingLocker(false);
+        }
     };
 
-    const handleBookSession = (type: string, time: string) => {
-        if (selectedDate) {
-            const trainerMap: { [key: string]: string } = {
-                'Personal Training': 'Kalinenko Miroslav',
-                'Group Class - Yoga': 'Chernyh Nikolai',
-                'Group Class - HIIT': 'Donetskaya Viktoriya'
-            };
-
-            const newBooking: Booking = {
-                id: Date.now().toString(),
-                type,
-                date: selectedDate.toISOString().split('T')[0],
-                time,
-                trainer: trainerMap[type] || undefined
-            };
-            setBookings([...bookings, newBooking]);
+    const handleBookSession = async (scheduleId: number) => {
+        try {
+            const response = await trainingApi.bookTraining(scheduleId);
+            toast.success('Успешно записались на тренировку!');
+            
+            // Обновить расписание
+            await loadTrainingSchedules();
+        } catch (error: any) {
+            console.error('Error booking training:', error);
+            toast.error(error.response?.data || 'Не удалось записаться на тренировку');
         }
     };
 
@@ -200,15 +314,24 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
             <div className="container mx-auto px-6 py-8">
                 <div className="mb-8">
                     <h1 className="text-4xl mb-2 text-white">Welcome, {user.name}!</h1>
-                    {user.membership && (
+                    {loadingMembership ? (
+                        <span className="text-gray-400">Загрузка абонемента...</span>
+                    ) : activeMembership ? (
                         <div className="flex items-center gap-2">
                             <Badge className="bg-orange-500 text-white">
-                                {user.membership.plan}
+                                {activeMembership.membership.name}
                             </Badge>
                             <span className="text-gray-300">
-                Valid until {new Date(user.membership.endDate).toLocaleDateString()}
-              </span>
+                                Valid until {new Date(activeMembership.endDate).toLocaleDateString()}
+                            </span>
+                            {activeMembership.autoRenew && (
+                                <Badge variant="outline" className="border-green-500 text-green-500">
+                                    Auto-renew
+                                </Badge>
+                            )}
                         </div>
+                    ) : (
+                        <span className="text-gray-400">No active membership</span>
                     )}
                 </div>
 
@@ -259,20 +382,44 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
                                     <CreditCard className="w-5 h-5 text-orange-500" />
                                     <h2 className="text-xl text-white">My Membership</h2>
                                 </div>
-                                {user.membership ? (
+                                {loadingMembership ? (
+                                    <p className="text-gray-400">Загрузка...</p>
+                                ) : activeMembership ? (
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center">
                                             <span className="text-gray-300">Plan:</span>
-                                            <span className="text-white">{user.membership.plan}</span>
+                                            <span className="text-white font-semibold">{activeMembership.membership.name}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-300">Price:</span>
+                                            <span className="text-white">${activeMembership.membership.price}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-gray-300">Start Date:</span>
-                                            <span className="text-white">{new Date(user.membership.startDate).toLocaleDateString()}</span>
+                                            <span className="text-white">{new Date(activeMembership.startDate).toLocaleDateString()}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-gray-300">End Date:</span>
-                                            <span className="text-white">{new Date(user.membership.endDate).toLocaleDateString()}</span>
+                                            <span className="text-white">{new Date(activeMembership.endDate).toLocaleDateString()}</span>
                                         </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-300">Status:</span>
+                                            <Badge className={activeMembership.isActive ? "bg-green-500" : "bg-red-500"}>
+                                                {activeMembership.isActive ? "Active" : "Inactive"}
+                                            </Badge>
+                                        </div>
+                                        {activeMembership.membership.features && activeMembership.membership.features.length > 0 && (
+                                            <div className="pt-3 border-t border-zinc-700">
+                                                <span className="text-gray-300 text-sm mb-2 block">Features:</span>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {activeMembership.membership.features.map((feature, idx) => (
+                                                        <Badge key={idx} variant="outline" className="border-orange-500 text-orange-500 text-xs">
+                                                            {feature}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <p className="text-gray-400">No active membership</p>
@@ -445,35 +592,62 @@ export function MemberDashboard({ user, onLogout }: MemberDashboardProps) {
                             </Card>
 
                             <Card className="bg-zinc-900 border-zinc-800 p-6">
-                                <h2 className="text-2xl mb-4 text-white">Available Sessions</h2>
+                                <h2 className="text-2xl mb-4 text-white">Available Training Sessions</h2>
                                 <p className="text-gray-300 mb-4">
                                     {selectedDate ? selectedDate.toLocaleDateString() : 'Select a date'}
                                 </p>
-                                <div className="space-y-3">
-                                    {availableSessions.map((session) => (
-                                        <div
-                                            key={session.id}
-                                            className="bg-zinc-800 p-4 rounded-lg border border-zinc-700"
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="text-lg text-white">{session.type}</p>
-                                                <Badge variant="outline" className="border-orange-500 text-orange-500">
-                                                    {session.time}
-                                                </Badge>
-                                            </div>
-                                            {session.trainer && (
-                                                <p className="text-sm text-gray-300 mb-3">With {session.trainer}</p>
-                                            )}
-                                            <Button
-                                                onClick={() => handleBookSession(session.type, session.time)}
-                                                className="w-full bg-orange-500 hover:bg-orange-600"
-                                                disabled={!selectedDate}
-                                            >
-                                                Book Session
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
+                                
+                                {loadingSchedules ? (
+                                    <p className="text-gray-400">Загрузка расписания...</p>
+                                ) : upcomingSchedules.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {upcomingSchedules.map((schedule) => {
+                                            const startTime = new Date(schedule.startTime);
+                                            const endTime = new Date(schedule.endTime);
+                                            const spotsLeft = schedule.maxParticipants - schedule.currentParticipants;
+                                            
+                                            return (
+                                                <div
+                                                    key={schedule.id}
+                                                    className="bg-zinc-800 p-4 rounded-lg border border-zinc-700"
+                                                >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <p className="text-lg text-white">{schedule.trainingName}</p>
+                                                        <Badge variant="outline" className="border-orange-500 text-orange-500">
+                                                            {startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="text-sm text-gray-300 mb-2">
+                                                        Coach: {schedule.coach.user.name}
+                                                    </p>
+                                                    <p className="text-sm text-gray-400 mb-2">
+                                                        {schedule.coach.specialization}
+                                                    </p>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <span className="text-xs text-gray-400">
+                                                            Duration: {Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))} min
+                                                        </span>
+                                                        <span className={`text-xs ${spotsLeft > 5 ? 'text-green-500' : spotsLeft > 0 ? 'text-yellow-500' : 'text-red-500'}`}>
+                                                            {spotsLeft > 0 ? `${spotsLeft} spots left` : 'Full'}
+                                                        </span>
+                                                    </div>
+                                                    {schedule.description && (
+                                                        <p className="text-xs text-gray-400 mb-3">{schedule.description}</p>
+                                                    )}
+                                                    <Button
+                                                        onClick={() => handleBookSession(schedule.id)}
+                                                        className="w-full bg-orange-500 hover:bg-orange-600"
+                                                        disabled={spotsLeft <= 0}
+                                                    >
+                                                        {spotsLeft > 0 ? 'Book Session' : 'Fully Booked'}
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-400">No training sessions available</p>
+                                )}
                             </Card>
                         </div>
                     </TabsContent>

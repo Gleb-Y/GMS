@@ -12,7 +12,7 @@ export type User = {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "member";
+  role: "ADMIN" | "USER";
   membership?: {
     plan: string;
     startDate: string;
@@ -69,7 +69,7 @@ export default function App() {
       {showLogin ? (
         <LoginPage onLogin={handleLogin} onBack={() => setShowLogin(false)} />
       ) : currentUser ? (
-        currentUser.role === "admin" ? (
+        currentUser.role === "ADMIN" ? (
           <AdminDashboard user={currentUser} onLogout={handleLogout} />
         ) : (
           <MemberDashboard user={currentUser} onLogout={handleLogout} />

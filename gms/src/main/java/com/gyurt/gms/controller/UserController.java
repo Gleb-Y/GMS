@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -54,6 +56,26 @@ public class UserController {
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("User not found with email: " + email, 
                                      HttpStatus.NOT_FOUND.value())));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<User>> getCurrentUser() { 
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+            
+            return userRepository.findByEmail(email)
+                .map(user -> ResponseEntity.ok(ApiResponse.success(user, "User found")))
+                .orElseGet(() -> ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("User not found with email: " + email, 
+                                         HttpStatus.NOT_FOUND.value())));
+        } catch (Exception e) {
+            return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("Unauthorized: " + e.getMessage(), 
+                                     HttpStatus.UNAUTHORIZED.value()));
+        }
     }
 
     @PutMapping

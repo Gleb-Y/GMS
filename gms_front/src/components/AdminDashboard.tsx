@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -9,6 +9,7 @@ import { Dumbbell, Users, LogOut, UserPlus, Calendar, Key, Brain, AlertTriangle,
 import type { User } from '../App';
 import { Badge } from "./ui/badge";
 import { toast } from 'sonner';
+import { adminApi, userApi, membershipApi, userMembershipApi, type UserStatistics, type Membership } from './apiServices';
 
 interface AdminDashboardProps {
     user: User;
@@ -62,23 +63,80 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         membershipPlan: '',
         startDate: ''
     });
-    const [members, setMembers] = useState<Member[]>([
-        {
-            id: '1',
-            name: 'Yurtaev Gleb',
-            email: 'member@gms.com',
-            membership: 'Premium Plan',
-            joinDate: '2025-01-01',
-            lockerNumber: '42'
-        },
-        {
-            id: '2',
-            name: 'Jane Smith',
-            email: 'jane@example.com',
-            membership: 'Basic Plan',
-            joinDate: '2025-02-15'
+    
+    // State for real data
+    const [members, setMembers] = useState<Member[]>([]);
+    const [userStats, setUserStats] = useState<UserStatistics | null>(null);
+    const [memberships, setMemberships] = useState<Membership[]>([]);
+    const [loading, setLoading] = useState(false);
+    
+    // Load data on mount
+    useEffect(() => {
+        loadDashboardData();
+        loadMemberships();
+    }, []);
+
+    const loadDashboardData = async () => {
+        setLoading(true);
+        try {
+            const [statsResponse, expiringResponse] = await Promise.all([
+                adminApi.getUserStatistics(),
+                adminApi.getExpiringMemberships(365) // Get all memberships for the year
+            ]);
+            
+            setUserStats(statsResponse.data);
+            
+            // Convert expiring memberships to members list
+            if (expiringResponse.data && Array.isArray(expiringResponse.data)) {
+                const membersList = expiringResponse.data.map((item: any) => ({
+                    id: item.userId?.toString() || item.id?.toString(),
+                    name: item.userName || item.name || 'N/A',
+                    email: item.userEmail || item.email || 'N/A',
+                    membership: item.membershipName || item.plan || 'N/A',
+                    joinDate: item.startDate ? new Date(item.startDate).toLocaleDateString() : 'N/A',
+                }));
+                setMembers(membersList);
+            }
+        } catch (error: any) {
+            console.error('Error loading dashboard data:', error);
+            toast.error('Не удалось загрузить данные дашборда');
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
+
+    const handleDeleteMember = async (memberId: string) => {
+        if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            await adminApi.deleteUser(Number(memberId));
+            
+            // Удалить из локального списка
+            setMembers(members.filter(m => m.id !== memberId));
+            
+            toast.success('Пользователь успешно удалён');
+            
+            // Обновить статистику
+            await loadDashboardData();
+        } catch (error: any) {
+            console.error('Error deleting user:', error);
+            toast.error(error.response?.data || 'Не удалось удалить пользователя');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadMemberships = async () => {
+        try {
+            const response = await membershipApi.getActiveMemberships();
+            setMemberships(response.data.data);
+        } catch (error: any) {
+            console.error('Error loading memberships:', error);
+        }
+    };
 
     // High-risk plan requests from AI assistant
     const [highRiskPlans, setHighRiskPlans] = useState<HighRiskPlanRequest[]>([
@@ -154,18 +212,64 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         }
     ]);
 
-    const handleRegisterUser = (e: React.FormEvent) => {
+    const handleRegisterUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        const member: Member = {
-            id: Date.now().toString(),
-            name: newUser.name,
-            email: newUser.email,
-            membership: newUser.membershipPlan,
-            joinDate: newUser.startDate
-        };
-        setMembers([...members, member]);
-        setNewUser({ email: '', name: '', membershipPlan: '', startDate: '' });
-        toast.success('User registered successfully!');
+        
+        if (!newUser.email || !newUser.name || !newUser.membershipPlan) {
+            toast.error('Заполните все обязательные поля');
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            // Создать пользователя
+            const userResponse = await userApi.createUser({
+                email: newUser.email,
+                name: newUser.name,
+                password: 'defaultPassword123', // Можно добавить поле для пароля
+                role: 'ROLE_USER'
+            });
+            
+            const createdUser = userResponse.data.data;
+            
+            // Назначить абонемент, если указан
+            if (newUser.membershipPlan && newUser.startDate) {
+                const selectedMembership = memberships.find(m => m.name === newUser.membershipPlan);
+                if (selectedMembership) {
+                    await userMembershipApi.assignMembership({
+                        user: { id: createdUser.id },
+                        membership: selectedMembership,
+                        startDate: newUser.startDate,
+                        endDate: undefined, // Backend рассчитает автоматически
+                        isActive: true,
+                        autoRenew: false
+                    });
+                }
+            }
+            
+            // Добавить в список members
+            const member: Member = {
+                id: createdUser.id.toString(),
+                name: newUser.name,
+                email: newUser.email,
+                membership: newUser.membershipPlan,
+                joinDate: newUser.startDate
+            };
+            setMembers([...members, member]);
+            
+            // Очистить форму
+            setNewUser({ email: '', name: '', membershipPlan: '', startDate: '' });
+            
+            toast.success('Пользователь успешно зарегистрирован!');
+            
+            // Обновить статистику
+            await loadDashboardData();
+        } catch (error: any) {
+            console.error('Error registering user:', error);
+            toast.error(error.response?.data?.message || 'Не удалось зарегистрировать пользователя');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleApprovePlan = (planId: string) => {
@@ -263,7 +367,9 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-gray-400 text-sm">Total Members</p>
-                                        <p className="text-3xl mt-2 text-white">{members.length}</p>
+                                        <p className="text-3xl mt-2 text-white">
+                                            {loading ? '...' : userStats?.totalUsers || 0}
+                                        </p>
                                     </div>
                                     <Users className="w-12 h-12 text-orange-500 opacity-50" />
                                 </div>
@@ -272,20 +378,24 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             <Card className="bg-zinc-900 border-zinc-800 p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-gray-400 text-sm">Active Bookings</p>
-                                        <p className="text-3xl mt-2 text-white">24</p>
+                                        <p className="text-gray-400 text-sm">Active Members</p>
+                                        <p className="text-3xl mt-2 text-white">
+                                            {loading ? '...' : userStats?.activeMembers || 0}
+                                        </p>
                                     </div>
-                                    <Calendar className="w-12 h-12 text-orange-500 opacity-50" />
+                                    <Activity className="w-12 h-12 text-orange-500 opacity-50" />
                                 </div>
                             </Card>
 
                             <Card className="bg-zinc-900 border-zinc-800 p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-gray-400 text-sm">Lockers Rented</p>
-                                        <p className="text-3xl mt-2 text-white">18 / 50</p>
+                                        <p className="text-gray-400 text-sm">Expiring Soon</p>
+                                        <p className="text-3xl mt-2 text-white">
+                                            {loading ? '...' : userStats?.expiringThisMonth || 0}
+                                        </p>
                                     </div>
-                                    <Key className="w-12 h-12 text-orange-500 opacity-50" />
+                                    <AlertTriangle className="w-12 h-12 text-orange-500 opacity-50" />
                                 </div>
                             </Card>
                         </div>
@@ -335,9 +445,15 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                             <SelectValue placeholder="Select a plan" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                                            <SelectItem value="Basic Plan" className="text-white focus:bg-zinc-700 focus:text-white">Basic Plan - $15/month</SelectItem>
-                                            <SelectItem value="Premium Plan" className="text-white focus:bg-zinc-700 focus:text-white">Premium Plan - $35/month</SelectItem>
-                                            <SelectItem value="Elite Plan" className="text-white focus:bg-zinc-700 focus:text-white">Elite Plan - $45/month</SelectItem>
+                                            {memberships.map((membership) => (
+                                                <SelectItem 
+                                                    key={membership.id} 
+                                                    value={membership.name} 
+                                                    className="text-white focus:bg-zinc-700 focus:text-white"
+                                                >
+                                                    {membership.name} - ${membership.price}/{membership.durationDays} days
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -367,26 +483,43 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     <TabsContent value="members">
                         <Card className="bg-zinc-900 border-zinc-800 p-6">
                             <h2 className="text-2xl mb-6 text-white">All Members</h2>
-                            <div className="space-y-4">
-                                {members.map((member) => (
-                                    <div
-                                        key={member.id}
-                                        className="bg-zinc-800 p-4 rounded-lg border border-zinc-700 flex items-center justify-between"
-                                    >
-                                        <div>
-                                            <p className="text-lg text-white">{member.name}</p>
-                                            <p className="text-sm text-gray-400">{member.email}</p>
+                            {loading ? (
+                                <p className="text-gray-400">Загрузка пользователей...</p>
+                            ) : members.length > 0 ? (
+                                <div className="space-y-4">
+                                    {members.map((member) => (
+                                        <div
+                                            key={member.id}
+                                            className="bg-zinc-800 p-4 rounded-lg border border-zinc-700 flex items-center justify-between"
+                                        >
+                                            <div>
+                                                <p className="text-lg text-white">{member.name}</p>
+                                                <p className="text-sm text-gray-400">{member.email}</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <p className="text-orange-500">{member.membership}</p>
+                                                    <p className="text-sm text-gray-400">Joined: {member.joinDate}</p>
+                                                    {member.lockerNumber && (
+                                                        <p className="text-sm text-gray-400">Locker: #{member.lockerNumber}</p>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    onClick={() => handleDeleteMember(member.id)}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="border-red-500 text-red-500 hover:bg-red-500/10"
+                                                    disabled={loading}
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-orange-500">{member.membership}</p>
-                                            <p className="text-sm text-gray-400">Joined: {member.joinDate}</p>
-                                            {member.lockerNumber && (
-                                                <p className="text-sm text-gray-400">Locker: #{member.lockerNumber}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-400">Пользователи не найдены</p>
+                            )}
                         </Card>
                     </TabsContent>
 

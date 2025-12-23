@@ -1,11 +1,36 @@
+import { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Dumbbell, Users, Zap, Trophy, ChevronRight } from "lucide-react";
+import { membershipApi, type Membership } from './apiServices';
+import { toast } from 'sonner';
 
 interface HomePageProps {
     onLoginClick: () => void;
 }
 
 export function HomePage({ onLoginClick }: HomePageProps) {
+    const [memberships, setMemberships] = useState<Membership[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadMemberships();
+    }, []);
+
+    const loadMemberships = async () => {
+        setLoading(true);
+        try {
+            const response = await membershipApi.getActiveMemberships();
+            setMemberships(response.data.data);
+        } catch (error: any) {
+            console.error('Error loading memberships:', error);
+            toast.error('Не удалось загрузить абонементы');
+            // Fallback to mock data if API fails
+            setMemberships(pricingPlansBackup);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
             {/* Navigation */}
@@ -102,34 +127,41 @@ export function HomePage({ onLoginClick }: HomePageProps) {
                     <p className="text-gray-400 text-center mb-12 max-w-2xl mx-auto">
                         Choose the plan that works best for you
                     </p>
-                    <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                        {pricingPlans.map((plan, index) => (
-                            <div
-                                key={index}
-                                className="bg-zinc-800 p-8 rounded-lg border border-zinc-700 hover:border-orange-500 transition-colors"
-                            >
-                                <h3 className="text-xl mb-6">{plan.name}</h3>
-                                <div className="mb-6">
-                                    <span className="text-4xl">${plan.price}</span>
-                                    <span className="text-gray-400">/month</span>
-                                </div>
-                                <ul className="space-y-3 mb-8">
-                                    {plan.features.map((feature, i) => (
-                                        <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                                            <span className="text-orange-500 mt-1">✓</span>
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
-                                <Button
-                                    onClick={onLoginClick}
-                                    className={index === 1 ? "w-full bg-orange-500 hover:bg-orange-600" : "w-full bg-zinc-700 hover:bg-zinc-600"}
+                    {loading ? (
+                        <p className="text-center text-gray-400">Загрузка планов...</p>
+                    ) : (
+                        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                            {memberships.map((plan, index) => (
+                                <div
+                                    key={plan.id}
+                                    className="bg-zinc-800 p-8 rounded-lg border border-zinc-700 hover:border-orange-500 transition-colors"
                                 >
-                                    Join Now
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
+                                    <h3 className="text-xl mb-6">{plan.name}</h3>
+                                    <div className="mb-6">
+                                        <span className="text-4xl">${plan.price}</span>
+                                        <span className="text-gray-400">/{plan.durationDays} days</span>
+                                    </div>
+                                    <p className="text-sm text-gray-400 mb-4">{plan.description}</p>
+                                    {plan.features && plan.features.length > 0 && (
+                                        <ul className="space-y-3 mb-8">
+                                            {plan.features.map((feature, i) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+                                                    <span className="text-orange-500 mt-1">✓</span>
+                                                    {feature}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    <Button
+                                        onClick={onLoginClick}
+                                        className={index === 1 ? "w-full bg-orange-500 hover:bg-orange-600" : "w-full bg-zinc-700 hover:bg-zinc-600"}
+                                    >
+                                        Join Now
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -220,15 +252,19 @@ const programs = [
     },
     {
         icon: <Trophy className="w-6 h-6 text-orange-500" />,
-        title: "Weight Gain",
-        description: "Structured program offers an effective approach to gaining weight in a healthy and sustainable manner."
+        title: "Competition Prep",
+        description: "Prepare for your next competition with specialized training and nutrition plans."
     }
 ];
 
-const pricingPlans = [
+const pricingPlansBackup: Membership[] = [
     {
+        id: 1,
         name: "Basic Plan",
+        description: "Perfect for beginners",
         price: 15,
+        durationDays: 30,
+        isActive: true,
         features: [
             "Access to gym facilities",
             "Standard equipment",
@@ -237,8 +273,12 @@ const pricingPlans = [
         ]
     },
     {
+        id: 2,
         name: "Premium Plan",
+        description: "Most popular choice",
         price: 35,
+        durationDays: 30,
+        isActive: true,
         features: [
             "All Basic Plan features",
             "Personal training (2x/month)",
@@ -248,8 +288,12 @@ const pricingPlans = [
         ]
     },
     {
+        id: 3,
         name: "Elite Plan",
+        description: "Ultimate fitness experience",
         price: 45,
+        durationDays: 30,
+        isActive: true,
         features: [
             "All Premium Plan features",
             "Unlimited personal training",
